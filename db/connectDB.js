@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const connectDB = async () => {
   try {
-    await mongoose.connect("mongodb://127.0.0.1:27017/gondalDb");
+    await mongoose.connect("mongodb+srv://sarmadawan35:DtNplVTmaWuQdS9S@mycluster.cytjjkg.mongodb.net/gondalDb");
     return console.log("DB connected...");
   } catch (error) {
     return console.log(`DB Connection Error: ${error}`);

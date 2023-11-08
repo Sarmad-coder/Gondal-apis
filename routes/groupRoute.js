@@ -6,6 +6,7 @@ const {
   updateGroup,
   deleteGroup,
   isGroupExist,
+  getGroupByType
 } = require("../controllers/groupController");
 
 router.route("/").get(getAllGroup).post(createGroup);
@@ -14,4 +15,5 @@ router
   .get(isGroupExist, getGroupById)
   .patch(isGroupExist, updateGroup)
   .delete(isGroupExist, deleteGroup);
+  router.post('/byType', getGroupByType)
 module.exports = router;

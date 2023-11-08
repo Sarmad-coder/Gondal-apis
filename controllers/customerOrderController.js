@@ -154,24 +154,7 @@ const updateCustomerOrder = async (req, res) => {
     return res.json({ message: `${error.message}`, status: status });
   }
 };
-const deleteCustomerOrder = async (req, res) => {
-  try {
-    //Get  object form isCustomerOrderExist
-    const deletedResult = await res.result.deleteOne();
-    if (!deletedResult) {
-      throw new CustomAPIError("Product not deleted successfuly");
-    }
-    const { __v, createdAt, updatedAt, ...resultInfo } = deletedResult._doc;
-    return res.json({
-      status: 200,
-      msg: "Record deleted successfuly",
-      data: resultInfo,
-    });
-  } catch (error) {
-    const status = error.status || 500;
-    return res.json({ message: `${error.message}`, status: status });
-  }
-};
+
 
 const salesReturnControllerr = async (req, res) => {
   try {
@@ -356,8 +339,169 @@ const previousOrder = async (req, res) => {
     return res.json({ message: `${error.message}`, status: status });
   }
 };
+
+
+const searchOrder = async (req, res) => {
+  try {
+    const data = await CustomerOrder.aggregate([
+      {
+        $match:{
+          invoiceNo:{$regex:req.body.search, $options:"i"}
+        }
+      }
+    ])
+    // const findIndex = data.findIndex((i) => i.customerId === req.params.id)
+    // const order = findIndex >= 1 ? data[findIndex - 1] : data[0]
+    return res.json({ status: 200, message: "Success", data });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.json({ message: `${error.message}`, status: status });
+  }
+};
+const deleteCustomerOrder = async (req, res) => {
+  try {
+    //Get  object form isCustomerOrderExist
+    const previousOrder = await CustomerOrder.findById(req.params.id)
+    const { warehouseId, productDetail } = previousOrder
+
+    for (const element of productDetail) {
+
+
+      // Check if product quantity is greater than previousOrder product quantity
+      
+        await WareHouse.updateOne(
+          { _id: warehouseId, "productIds.proId": element._id },
+          { $inc: { "productIds.$.qty": element.cartQty } }
+        );
+
+        await Product.updateOne(
+          { _id: element._id },
+          { $inc: { quantity: element.cartQty } }
+        );
+
+        await Stock.updateOne(
+          { productId: element._id, warehouseId },
+          { $inc: { qty: element.cartQty } }
+        );
+        let total = element.cartQty * element.productPrice
+        let cost = element.cartQty * element.productCost
+        await Profit.updateOne({
+          pId: element._id
+        },
+          {
+            $set: {
+              pId: element._id,
+              name: element.productName
+            },
+            $inc: {
+              productCost: -cost,
+              grandTotal: -total,
+              qty: -element.cartQty,
+            }
+          }, { upsert: true })
+      
+
+      const data = await CustomerOrder.findByIdAndDelete(req.params.id)
+      return res.json({ status: 200, message: "Success", data });
+
+    }
+
+  } catch (error) {
+    const status = error.status || 500;
+    return res.json({ message: `${error.message}`, status: status });
+  }
+};
 const updatePreviousOrder = async (req, res) => {
   try {
+    const { warehouseId, productDetail } = req.body;
+
+
+
+    const previousOrder = await CustomerOrder.findById(req.params.id)
+    for (const element of productDetail) {
+      const previousOrderProduct = previousOrder?.productDetail?.find((item) => {
+        return item._id == element._id;
+      });
+      let productQuantity = 0
+      if (previousOrderProduct) {
+
+        productQuantity = element.cartQty - previousOrderProduct.cartQty
+      } else {
+        productQuantity = element.cartQty
+      }
+
+      // Check if product quantity is greater than previousOrder product quantity
+      if (productQuantity > 0) {
+        await WareHouse.updateOne(
+          { _id: warehouseId, "productIds.proId": element._id },
+          { $inc: { "productIds.$.qty": -productQuantity } }
+        );
+
+        await Product.updateOne(
+          { _id: element._id },
+          { $inc: { quantity: -productQuantity } }
+        );
+
+        await Stock.updateOne(
+          { productId: element._id, warehouseId },
+          { $inc: { qty: -productQuantity } }
+        );
+        let total = productQuantity * element.productPrice
+        let cost = productQuantity * element.productCost
+        await Profit.updateOne({
+          pId: element._id
+        },
+          {
+            $set: {
+              pId: element._id,
+              name: element.productName
+            },
+            $inc: {
+              productCost: cost,
+              grandTotal: total,
+              qty: productQuantity,
+            }
+          }, { upsert: true })
+      } else {
+        // Check if product quantity is less than previousOrder product quantity
+        productQuantity = Math.abs(productQuantity)
+
+        await WareHouse.updateOne(
+          { _id: warehouseId, "productIds.proId": element._id },
+          { $inc: { "productIds.$.qty": productQuantity } }
+        );
+
+        await Product.updateOne(
+          { _id: element._id },
+          { $inc: { quantity: productQuantity } }
+        );
+
+        await Stock.updateOne(
+          { productId: element._id, warehouseId },
+          { $inc: { qty: productQuantity } }
+        );
+        let total = productQuantity * element.productPrice
+        let cost = productQuantity * element.productCost
+        await Profit.updateOne({
+          pId: element._id
+        },
+          {
+            $set: {
+              pId: element._id,
+              name: element.productName
+            },
+            $inc: {
+              productCost: -cost,
+              grandTotal: -total,
+              qty: -productQuantity,
+            }
+          }, { upsert: true })
+      }
+
+
+
+
+    }
     const data = await CustomerOrder.updateOne({ _id: req.params.id }, { $set: { ...req.body } })
 
     return res.json({ status: 200, message: "Success", data });
@@ -379,6 +523,7 @@ module.exports = {
   salesReturnController,
   profitReport,
   previousOrder,
-  updatePreviousOrder
+  updatePreviousOrder,
+  searchOrder
 
 };

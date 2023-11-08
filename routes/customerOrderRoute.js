@@ -9,7 +9,8 @@ const {
   salesReturnController,
   profitReport,
   previousOrder,
-  updatePreviousOrder
+  updatePreviousOrder,
+  searchOrder
 } = require("../controllers/customerOrderController");
 
 router.route("/").get(getAllCustomerOrder).post(createCustomerOrder);
@@ -22,4 +23,5 @@ router
 router.get('/profit/report', profitReport)
 router.get('/previousOrder/:id/:customerId', previousOrder)
 router.patch('/previousOrder/:id', updatePreviousOrder)
+router.post('/previousOrder/search', searchOrder)
 module.exports = router;

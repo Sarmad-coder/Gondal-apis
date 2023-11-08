@@ -57,6 +57,17 @@ const getGroupById = async (req, res) => {
     return res.json({ message: `${error.message}`, status: status });
   }
 };
+const getGroupByType = async (req, res) => {
+  try {
+    //Get  object form isGroupExist
+    let data=await Group.find({grpType:req.body.type});
+
+    return res.json({ status: 200, msg: "Success", data: data });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.json({ message: `${error.message}`, status: status });
+  }
+};
 const updateGroup = async (req, res) => {
   try {
     //Get  object form isGroupExist
@@ -102,4 +113,5 @@ module.exports = {
   updateGroup,
   deleteGroup,
   isGroupExist,
+  getGroupByType
 };
