@@ -3,6 +3,7 @@ const WareHouse = require("../models/Ware-House");
 const Group = require("../models/Group");
 const mongoose = require("mongoose");
 const Supplier = require("../models/Supplier");
+let {ObjectId}=require("mongodb")
 const { deleteImageFromLocal } = require("../controllers/uploadsController");
 const fs = require("fs");
 const { BadRequestError, NotFoundError, CustomAPIError } = require("../errors");
@@ -193,10 +194,36 @@ const updateProduct = async (req, res) => {
 };
 const updateProductsPrice = async (req, res) => {
   try {
-    const { ids, price } = req.body;
+    const { ids, price,percentage } = req.body;
     if (ids.length <= 0 || !price) {
       throw new BadRequestError("Bad Request Error");
     }
+    if (percentage) {
+      const objectIdArray = ids.map(id => new ObjectId(id));
+      const updatedProducts = await Product.aggregate([
+        { $match: { _id: { $in: objectIdArray } } }, // Filter by product IDs
+        {
+          $addFields: {
+            productPrice: {
+              $multiply: [
+                { $add: ['$productCost', { $multiply: ['$productCost', price / 100] }] },
+                
+              ]
+            }
+          }
+        },
+        
+      ]);
+      console.log(updatedProducts)
+      const updateOperations = updatedProducts.map(async(product) => {
+       
+        await Product.findByIdAndUpdate(
+          product._id,
+          { $set: { productPrice: product.productPrice } },
+          { new: true }
+        )
+      });
+    }else{
     ids.map(async (item) => {
       await Product.findByIdAndUpdate(
         item,
@@ -204,7 +231,8 @@ const updateProductsPrice = async (req, res) => {
         { new: true }
       );
     });
-
+  }
+  
     return res.json({ status: 200, message: "Prices updated" });
   } catch (error) {
     const status = error.statusCode || 500;
