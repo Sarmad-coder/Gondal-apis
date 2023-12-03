@@ -171,7 +171,7 @@ const getProductByGroup = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     //Get  object form isProductExist
-    if (!req.file.filename) {
+    if (!req.file?.filename) {
     } else {
       const imageUrl = req.file.filename;
       req.body.imageUrl = imageUrl;
