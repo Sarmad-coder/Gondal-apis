@@ -118,7 +118,9 @@ const getProductByWareHouse = async (req, res) => {
         productName: 1,
         productPrice: 1,
         unitProduct: 1,
-        warehouse: 1
+        warehouse: 1,
+        productCost: 1,
+        basePrice: 1
       }
     ).populate("group", { __v: 0, grpCode: 0 }).populate({ path: "warehouse" }).populate("supplier");
 
@@ -156,7 +158,7 @@ const getProductByGroup = async (req, res) => {
     const groupId = req.params.id;
     const result = await Product.find(
       { group: groupId },
-      { productName: 1, imageUrl: 1, productPrice: 1, quantity: 1 }
+      { productName: 1, imageUrl: 1, productPrice: 1, quantity: 1,productCost: 1,basePrice: 1 }
     );
     if (result.length <= 0) {
       throw new NotFoundError("Product not found");
@@ -194,46 +196,103 @@ const updateProduct = async (req, res) => {
 };
 const updateProductsPrice = async (req, res) => {
   try {
-    const { ids, price,percentage } = req.body;
-    if (ids.length <= 0 || !price) {
+    const { ids, price,percentage,cost,base } = req.body;
+    if (ids.length <= 0) {
       throw new BadRequestError("Bad Request Error");
     }
     if (percentage) {
       const objectIdArray = ids.map(id => new ObjectId(id));
-      const updatedProducts = await Product.aggregate([
-        { $match: { _id: { $in: objectIdArray } } }, // Filter by product IDs
-        {
-          $addFields: {
-            productPrice: {
-              $multiply: [
-                { $add: ['$productCost', { $multiply: ['$productCost', price / 100] }] },
-                
-              ]
+      if (base) {
+        const updatedProducts = await Product.aggregate([
+          { $match: { _id: { $in: objectIdArray } } }, // Filter by product IDs
+          {
+            $addFields: {
+              basePrice: base
             }
-          }
-        },
-        
-      ]);
-      console.log(updatedProducts)
-      const updateOperations = updatedProducts.map(async(product) => {
-       
-        await Product.findByIdAndUpdate(
-          product._id,
-          { $set: { productPrice: product.productPrice } },
-          { new: true }
-        )
-      });
+          },
+          
+        ]);
+        const updateOperations = updatedProducts.map(async(product) => {
+         
+          await Product.findByIdAndUpdate(
+            product._id,
+            { $set: { basePrice: product.basePrice } },
+            { new: true }
+          )
+        });
+        await Promise.all(updateOperations);
+      }
+      if (cost) {
+        const updatedProducts = await Product.aggregate([
+          { $match: { _id: { $in: objectIdArray } } }, // Filter by product IDs
+          {
+            $addFields: {
+              productCost: {
+                $multiply: [
+                  { $add: ['$basePrice', { $multiply: ['$basePrice', cost / 100] }] },
+                  
+                ]
+              }
+            }
+          },
+          
+        ]);
+        const updateOperations = updatedProducts.map(async(product) => {
+         
+          await Product.findByIdAndUpdate(
+            product._id,
+            { $set: { productCost: product.productCost } },
+            { new: true }
+          )
+        });
+        await Promise.all(updateOperations);
+      }
+      if (price) {
+        const updatedProducts = await Product.aggregate([
+          { $match: { _id: { $in: objectIdArray } } }, // Filter by product IDs
+          {
+            $addFields: {
+              productPrice: {
+                $multiply: [
+                  { $add: ['$productCost', { $multiply: ['$productCost', price / 100] }] },
+                  
+                ]
+              }
+            }
+          },
+          
+        ]);
+        const updateOperations = updatedProducts.map(async(product) => {
+         
+          await Product.findByIdAndUpdate(
+            product._id,
+            { $set: { productPrice: product.productPrice } },
+            { new: true }
+          )
+        });
+      }
+      
     }else{
     ids.map(async (item) => {
-      await Product.findByIdAndUpdate(
-        item,
-        { $set: { productPrice: price } },
-        { new: true }
-      );
+      if (price) {
+        await Product.findByIdAndUpdate(
+          item,
+          { $set: { productPrice: price } },
+          { new: true }
+        );
+      }
+      if (cost) {
+        await Product.findByIdAndUpdate(
+          item,
+          { $set: { productCost: cost } },
+          { new: true }
+        );
+      }
+      
     });
   }
   
-    return res.json({ status: 200, message: "Prices updated" });
+    return res.json({ status: 200, message: "Successfuly updated" });
   } catch (error) {
     const status = error.statusCode || 500;
 

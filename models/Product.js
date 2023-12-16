@@ -9,6 +9,7 @@ const productSchema = new mongoose.Schema(
     brand: { type: String, default: "" },
     imageUrl: { type: String, default: "" }, //
     details: { type: String, default: "" },
+    basePrice:{ type: Number, default: 0 },
     productCost: { type: Number, default: 0 },
     productPrice: { type: Number, default: 0 }, //
     unitSale: { type: String, default: "" },
